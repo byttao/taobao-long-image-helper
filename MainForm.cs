@@ -188,6 +188,7 @@ public sealed class MainForm : Form
         _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "创建时间", DataPropertyName = nameof(TaskItem.CreatedAt), Width = 150 });
         _grid.MouseDown += GridMouseDown;
         _grid.MouseMove += GridMouseMove;
+        _grid.CellDoubleClick += GridCellDoubleClick;
         return _grid;
     }
 
@@ -409,6 +410,23 @@ public sealed class MainForm : Form
         _dragRowIndex = -1;
     }
 
+    private void GridCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+    {
+        if (e.RowIndex < 0) return;
+        if (_grid.Rows[e.RowIndex].DataBoundItem is not TaskItem item) return;
+
+        if (!TryCreateFileDataObject(item, out var data, out var error))
+        {
+            MessageBox.Show(error, "无法复制", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        Clipboard.SetDataObject(data, true);
+        AppendLog($"已复制图片文件到剪贴板：{item.ImageFile}");
+        item.Message = "已复制到剪贴板，可到文件夹中粘贴";
+        _grid.Refresh();
+    }
+
     private void AppendLog(string message)
     {
         _logBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
@@ -422,6 +440,33 @@ public sealed class MainForm : Form
         data.SetData(DataFormats.FileDrop, true, new[] { filePath });
         data.SetData("Preferred DropEffect", new MemoryStream(BitConverter.GetBytes((int)DragDropEffects.Copy)));
         return data;
+    }
+
+    private static bool TryCreateFileDataObject(TaskItem item, out DataObject data, out string error)
+    {
+        data = new DataObject();
+        error = "";
+
+        if (item.Status != "完成")
+        {
+            error = "只有完成状态的任务才能复制图片。";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(item.ImageFile))
+        {
+            error = "该任务没有图片文件路径。";
+            return false;
+        }
+
+        if (!File.Exists(item.ImageFile))
+        {
+            error = "图片文件不存在，可能已被移动或删除。";
+            return false;
+        }
+
+        data = CreateFileDragData(item.ImageFile);
+        return true;
     }
 
     private static string GetVersion()
