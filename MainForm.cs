@@ -104,7 +104,7 @@ public sealed class MainForm : Form
 
         _initButton.Text = "初始化";
         _initButton.Width = 110;
-        _initButton.Click += (_, _) => InitializeChrome();
+        _initButton.Click += async (_, _) => await InitializeChromeAsync();
         layout.Controls.Add(_initButton, 6, 0);
 
         var hint = new Label
@@ -270,16 +270,25 @@ public sealed class MainForm : Form
         }
     }
 
-    private void InitializeChrome()
+    private async Task InitializeChromeAsync()
     {
         try
         {
+            _initButton.Enabled = false;
             if (string.IsNullOrWhiteSpace(_chromePathBox.Text) || !File.Exists(_chromePathBox.Text))
             {
                 throw new FileNotFoundException("Chrome 路径无效，请先选择 chrome.exe。");
             }
 
             var port = (int)_portBox.Value;
+            if (await ChromeHelper.CanConnectToDebugPortAsync(port))
+            {
+                AppendLog($"已连接现有 Chrome，端口：{port}");
+                await ChromeHelper.OpenLoginPageInExistingChromeAsync(port);
+                AppendLog($"已在现有 Chrome 中打开淘宝登录页：{ChromeHelper.LoginUrl}");
+                return;
+            }
+
             if (!ChromeHelper.IsPortAvailable(port))
             {
                 port = ChromeHelper.FindAvailablePort(port + 1);
@@ -294,6 +303,10 @@ public sealed class MainForm : Form
         catch (Exception ex)
         {
             MessageBox.Show(ex.Message, "初始化失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            _initButton.Enabled = true;
         }
     }
 

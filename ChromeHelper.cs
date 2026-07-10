@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http;
 using System.Net.Sockets;
+using Microsoft.Playwright;
 
 public static class ChromeHelper
 {
@@ -41,6 +43,45 @@ public static class ChromeHelper
         {
             return false;
         }
+    }
+
+    public static async Task<bool> CanConnectToDebugPortAsync(int port)
+    {
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+            using var response = await http.GetAsync($"http://127.0.0.1:{port}/json/version");
+            if (!response.IsSuccessStatusCode) return false;
+
+            var text = await response.Content.ReadAsStringAsync();
+            return text.Contains("webSocketDebuggerUrl", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("Browser", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static async Task OpenLoginPageInExistingChromeAsync(int port)
+    {
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.ConnectOverCDPAsync(
+            $"http://127.0.0.1:{port}",
+            new BrowserTypeConnectOverCDPOptions
+            {
+                IsLocal = true,
+                NoDefaults = true,
+                Timeout = 10000
+            });
+
+        var context = browser.Contexts.FirstOrDefault() ?? await browser.NewContextAsync();
+        var page = await context.NewPageAsync();
+        await page.GotoAsync(LoginUrl, new PageGotoOptions
+        {
+            WaitUntil = WaitUntilState.DOMContentLoaded,
+            Timeout = 60000
+        });
     }
 
     public static string GetDefaultProfileDir()
