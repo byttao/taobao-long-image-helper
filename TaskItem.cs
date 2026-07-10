@@ -3,6 +3,7 @@ public sealed class TaskItem
     public string Status { get; set; } = "";
     public string ProductId { get; set; } = "";
     public string ProductName { get; set; } = "";
+    public string ImageUrl { get; set; } = "";
     public string ImageFile { get; set; } = "";
     public string Message { get; set; } = "";
     public DateTime CreatedAt { get; set; } = DateTime.Now;

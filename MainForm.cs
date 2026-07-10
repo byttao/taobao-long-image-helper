@@ -183,6 +183,7 @@ public sealed class MainForm : Form
         _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "状态", DataPropertyName = nameof(TaskItem.Status), Width = 80 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "商品ID", DataPropertyName = nameof(TaskItem.ProductId), Width = 150 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "商品名称", DataPropertyName = nameof(TaskItem.ProductName), AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "图片链接", DataPropertyName = nameof(TaskItem.ImageUrl), Width = 260 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "图片文件", DataPropertyName = nameof(TaskItem.ImageFile), Width = 260 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "说明", DataPropertyName = nameof(TaskItem.Message), Width = 220 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "创建时间", DataPropertyName = nameof(TaskItem.CreatedAt), Width = 150 });
@@ -350,6 +351,7 @@ public sealed class MainForm : Form
             item.Status = "完成";
             item.ProductId = result.ProductId;
             item.ProductName = result.ProductName;
+            item.ImageUrl = result.ImageUrl;
             item.ImageFile = result.OutputFile;
             item.Message = result.UsedFallback ? "完成：使用详情页主图兜底" : "完成：店铺搜索页命中";
             AppendLog(item.Message);
@@ -429,6 +431,15 @@ public sealed class MainForm : Form
         if (e.RowIndex < 0) return;
         if (_grid.Rows[e.RowIndex].DataBoundItem is not TaskItem item) return;
 
+        var propertyName = e.ColumnIndex >= 0
+            ? _grid.Columns[e.ColumnIndex].DataPropertyName
+            : "";
+        if (propertyName == nameof(TaskItem.ImageUrl))
+        {
+            CopyImageUrl(item);
+            return;
+        }
+
         if (!TryCreateFileDataObject(item, out var data, out var error))
         {
             MessageBox.Show(error, "无法复制", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -438,6 +449,26 @@ public sealed class MainForm : Form
         Clipboard.SetDataObject(data, true);
         AppendLog($"已复制图片文件到剪贴板：{item.ImageFile}");
         item.Message = "已复制到剪贴板，可到文件夹中粘贴";
+        _grid.Refresh();
+    }
+
+    private void CopyImageUrl(TaskItem item)
+    {
+        if (item.Status != "完成")
+        {
+            MessageBox.Show("只有完成状态的任务才能复制图片链接。", "无法复制", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(item.ImageUrl))
+        {
+            MessageBox.Show("该任务没有图片链接。", "无法复制", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        Clipboard.SetText(item.ImageUrl);
+        AppendLog($"已复制图片链接到剪贴板：{item.ImageUrl}");
+        item.Message = "已复制图片链接到剪贴板";
         _grid.Refresh();
     }
 
