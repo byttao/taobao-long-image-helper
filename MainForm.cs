@@ -179,14 +179,18 @@ public sealed class MainForm : Form
         _grid.ReadOnly = true;
         _grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
         _grid.MultiSelect = false;
+        _grid.RowHeadersVisible = false;
+        _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        _grid.ScrollBars = ScrollBars.Vertical;
+        _grid.ShowCellToolTips = true;
         _grid.DataSource = _tasks;
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "状态", DataPropertyName = nameof(TaskItem.Status), Width = 80 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "商品ID", DataPropertyName = nameof(TaskItem.ProductId), Width = 150 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "商品名称", DataPropertyName = nameof(TaskItem.ProductName), AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "图片链接", DataPropertyName = nameof(TaskItem.ImageUrl), Width = 260 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "图片文件", DataPropertyName = nameof(TaskItem.ImageFile), Width = 260 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "说明", DataPropertyName = nameof(TaskItem.Message), Width = 220 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "创建时间", DataPropertyName = nameof(TaskItem.CreatedAt), Width = 150 });
+        _grid.Columns.Add(CreateGridColumn("状态", nameof(TaskItem.Status), 8, 60));
+        _grid.Columns.Add(CreateGridColumn("商品ID", nameof(TaskItem.ProductId), 14, 105));
+        _grid.Columns.Add(CreateGridColumn("商品名称", nameof(TaskItem.ProductName), 20, 120));
+        _grid.Columns.Add(CreateGridColumn("图片链接", nameof(TaskItem.ImageUrl), 28, 150));
+        _grid.Columns.Add(CreateGridColumn("图片文件", nameof(TaskItem.ImageFile), 22, 135));
+        _grid.Columns.Add(CreateGridColumn("说明", nameof(TaskItem.Message), 20, 130));
+        _grid.Columns.Add(CreateGridColumn("创建时间", nameof(TaskItem.CreatedAt), 10, 85, "MM-dd HH:mm"));
         _grid.MouseDown += GridMouseDown;
         _grid.MouseMove += GridMouseMove;
         _grid.CellDoubleClick += GridCellDoubleClick;
@@ -217,7 +221,7 @@ public sealed class MainForm : Form
         {
             AutoSize = true,
             ForeColor = Color.DimGray,
-            Text = "完成任务可从列表拖拽到本地文件夹，系统会复制对应图片文件。"
+            Text = "双击“图片链接”列复制网址；双击其他列复制图片文件，可到文件夹中粘贴。失败行若生成排查链接，也可双击复制。"
         }, 0, 0);
 
         panel.Controls.Add(new Label
@@ -359,6 +363,15 @@ public sealed class MainForm : Form
         catch (Exception ex)
         {
             item.Status = "失败";
+            if (ex is ExtractDiagnosticException diagnosticException)
+            {
+                item.ImageUrl = diagnosticException.DiagnosticUrl;
+                if (!string.IsNullOrWhiteSpace(diagnosticException.ProductName))
+                {
+                    item.ProductName = diagnosticException.ProductName;
+                }
+            }
+
             item.Message = ex.Message;
             AppendLog($"失败：{ex.Message}");
         }
@@ -454,12 +467,6 @@ public sealed class MainForm : Form
 
     private void CopyImageUrl(TaskItem item)
     {
-        if (item.Status != "完成")
-        {
-            MessageBox.Show("只有完成状态的任务才能复制图片链接。", "无法复制", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-
         if (string.IsNullOrWhiteSpace(item.ImageUrl))
         {
             MessageBox.Show("该任务没有图片链接。", "无法复制", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -470,6 +477,31 @@ public sealed class MainForm : Form
         AppendLog($"已复制图片链接到剪贴板：{item.ImageUrl}");
         item.Message = "已复制图片链接到剪贴板";
         _grid.Refresh();
+    }
+
+    private static DataGridViewTextBoxColumn CreateGridColumn(
+        string header,
+        string propertyName,
+        float fillWeight,
+        int minimumWidth,
+        string? format = null)
+    {
+        var column = new DataGridViewTextBoxColumn
+        {
+            HeaderText = header,
+            DataPropertyName = propertyName,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+            FillWeight = fillWeight,
+            MinimumWidth = minimumWidth,
+            SortMode = DataGridViewColumnSortMode.NotSortable
+        };
+
+        if (!string.IsNullOrWhiteSpace(format))
+        {
+            column.DefaultCellStyle.Format = format;
+        }
+
+        return column;
     }
 
     private void AppendLog(string message)

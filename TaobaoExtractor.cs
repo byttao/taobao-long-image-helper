@@ -35,6 +35,8 @@ public sealed class TaobaoExtractor
         cancellationToken.ThrowIfCancellationRequested();
         var context = browser.Contexts.FirstOrDefault() ?? await browser.NewContextAsync();
         var page = await context.NewPageAsync();
+        var productName = "";
+        var diagnosticAuctionUrl = "";
 
         try
         {
@@ -51,7 +53,7 @@ public sealed class TaobaoExtractor
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            var productName = await ExtractProductNameAsync(page);
+            productName = await ExtractProductNameAsync(page);
             if (string.IsNullOrWhiteSpace(productName))
             {
                 throw new InvalidOperationException("未能提取商品名称。");
@@ -86,6 +88,7 @@ public sealed class TaobaoExtractor
             progress?.Report($"shopId：{shopId}");
 
             var auctionUrl = BuildAuctionUrl(sellerId, shopId, productName);
+            diagnosticAuctionUrl = auctionUrl;
             progress?.Report($"正在打开店铺搜索页定位图片，搜索词：{productName}");
             await RandomOperationDelayAsync(cancellationToken, progress, "准备打开店铺搜索页");
             await NavigateAsync(page, auctionUrl);
@@ -133,6 +136,10 @@ public sealed class TaobaoExtractor
                 OutputFile = outputFile,
                 UsedFallback = usedFallback
             };
+        }
+        catch (Exception ex) when (!string.IsNullOrWhiteSpace(diagnosticAuctionUrl) && ex is not ExtractDiagnosticException)
+        {
+            throw new ExtractDiagnosticException(ex.Message, diagnosticAuctionUrl, productName, ex);
         }
         finally
         {

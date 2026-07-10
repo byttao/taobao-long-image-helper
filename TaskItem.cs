@@ -19,3 +19,16 @@ public sealed class ExtractResult
     public string OutputFile { get; init; } = "";
     public bool UsedFallback { get; init; }
 }
+
+public sealed class ExtractDiagnosticException : InvalidOperationException
+{
+    public ExtractDiagnosticException(string message, string diagnosticUrl, string productName, Exception innerException)
+        : base(message, innerException)
+    {
+        DiagnosticUrl = diagnosticUrl;
+        ProductName = productName;
+    }
+
+    public string DiagnosticUrl { get; }
+    public string ProductName { get; }
+}
