@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $appName = "淘宝商品长图提取工具"
-$version = "v1.11.0"
+$version = "v1.12.0"
 $publishRoot = Join-Path $PSScriptRoot "publish-win-x64"
 $appDir = Join-Path $publishRoot $appName
 $zipPath = Join-Path $PSScriptRoot "$appName-$version-win-x64.zip"

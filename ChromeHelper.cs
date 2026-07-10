@@ -45,6 +45,18 @@ public static class ChromeHelper
         }
     }
 
+    public static bool HasRunningChromeProcesses()
+    {
+        try
+        {
+            return Process.GetProcessesByName("chrome").Any();
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public static async Task<bool> CanConnectToDebugPortAsync(int port)
     {
         try

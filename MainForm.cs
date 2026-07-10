@@ -5,22 +5,24 @@ using System.Reflection;
 public sealed class MainForm : Form
 {
     private const string ReleaseDate = "2026-07-10";
+    private const int AutoInputPanelHeight = 132;
+    private const int ManualInputPanelHeight = 390;
+    private readonly GroupBox _inputPanel = new();
+    private readonly TabControl _modeTabs = new();
     private readonly TextBox _chromePathBox = new();
     private readonly NumericUpDown _portBox = new();
     private readonly TextBox _saveFolderBox = new();
     private readonly TextBox _productInputBox = new();
     private readonly TextBox _manualInputBox = new();
     private readonly TextBox _qianniuUrlBox = new();
-    private readonly TextBox _productSourceBox = new();
-    private readonly TextBox _shopSourceBox = new();
+    private readonly RichTextBox _productSourceBox = new();
+    private readonly RichTextBox _shopSourceBox = new();
     private readonly TextBox _manualProductNameBox = new();
     private readonly TextBox _manualSellerIdBox = new();
     private readonly TextBox _manualShopIdBox = new();
     private readonly Button _initButton = new();
     private readonly Button _startButton = new();
     private readonly Button _convertQianniuUrlButton = new();
-    private readonly Button _parseProductSourceButton = new();
-    private readonly Button _parseShopSourceButton = new();
     private readonly Button _manualStartButton = new();
     private readonly Button _browseChromeButton = new();
     private readonly Button _autoChromeButton = new();
@@ -133,29 +135,24 @@ public sealed class MainForm : Form
 
     private Control BuildInputPanel()
     {
-        var panel = new GroupBox
-        {
-            Text = "2. 选择获取方式",
-            Dock = DockStyle.Top,
-            Height = 360,
-            Padding = new Padding(10)
-        };
+        _inputPanel.Text = "2. 选择获取方式";
+        _inputPanel.Dock = DockStyle.Top;
+        _inputPanel.Height = AutoInputPanelHeight;
+        _inputPanel.Padding = new Padding(10);
 
-        var tabs = new TabControl
-        {
-            Dock = DockStyle.Fill
-        };
-        panel.Controls.Add(tabs);
+        _modeTabs.Dock = DockStyle.Fill;
+        _modeTabs.SelectedIndexChanged += (_, _) => AdjustInputPanelHeight();
+        _inputPanel.Controls.Add(_modeTabs);
 
         var autoTab = new TabPage("自动获取");
         autoTab.Controls.Add(BuildAutoInputPanel());
-        tabs.TabPages.Add(autoTab);
+        _modeTabs.TabPages.Add(autoTab);
 
         var manualTab = new TabPage("千牛源码辅助");
         manualTab.Controls.Add(BuildManualInputPanel());
-        tabs.TabPages.Add(manualTab);
+        _modeTabs.TabPages.Add(manualTab);
 
-        return panel;
+        return _inputPanel;
     }
 
     private Control BuildAutoInputPanel()
@@ -168,21 +165,23 @@ public sealed class MainForm : Form
 
         var layout = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
             AutoSize = true,
-            ColumnCount = 6,
-            RowCount = 2
+            ColumnCount = 4,
+            RowCount = 2,
+            Padding = new Padding(0, 6, 0, 0)
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         host.Controls.Add(layout);
 
         layout.Controls.Add(new Label { Text = "商品ID/链接", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0);
         _productInputBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        _productInputBox.Margin = new Padding(6, 3, 8, 3);
         layout.Controls.Add(_productInputBox, 1, 0);
 
         _startButton.Text = "开始获取长图";
@@ -192,16 +191,16 @@ public sealed class MainForm : Form
 
         layout.Controls.Add(new Label { Text = "保存文件夹", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 1);
         _saveFolderBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-        layout.SetColumnSpan(_saveFolderBox, 2);
+        _saveFolderBox.Margin = new Padding(6, 3, 8, 3);
         layout.Controls.Add(_saveFolderBox, 1, 1);
 
         _browseSaveButton.Text = "浏览";
         _browseSaveButton.Click += (_, _) => BrowseSaveFolder();
-        layout.Controls.Add(_browseSaveButton, 3, 1);
+        layout.Controls.Add(_browseSaveButton, 2, 1);
 
         var openFolder = new Button { Text = "打开文件夹", Width = 100 };
         openFolder.Click += (_, _) => OpenSaveFolder();
-        layout.Controls.Add(openFolder, 4, 1);
+        layout.Controls.Add(openFolder, 3, 1);
 
         return host;
     }
@@ -217,74 +216,68 @@ public sealed class MainForm : Form
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 6,
-            RowCount = 6
+            ColumnCount = 4,
+            RowCount = 7,
+            Padding = new Padding(0, 6, 0, 0)
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         host.Controls.Add(layout);
 
         layout.Controls.Add(new Label { Text = "商品ID/链接", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0);
         _manualInputBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-        layout.SetColumnSpan(_manualInputBox, 2);
+        _manualInputBox.Margin = new Padding(6, 3, 8, 3);
         layout.Controls.Add(_manualInputBox, 1, 0);
 
         _convertQianniuUrlButton.Text = "转换并复制";
         _convertQianniuUrlButton.Width = 110;
         _convertQianniuUrlButton.Click += (_, _) => ConvertQianniuUrl();
-        layout.Controls.Add(_convertQianniuUrlButton, 3, 0);
+        layout.Controls.Add(_convertQianniuUrlButton, 2, 0);
 
         layout.Controls.Add(new Label { Text = "千牛链接", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 1);
         _qianniuUrlBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
         _qianniuUrlBox.ReadOnly = true;
-        layout.SetColumnSpan(_qianniuUrlBox, 5);
+        _qianniuUrlBox.Margin = new Padding(6, 3, 0, 3);
+        layout.SetColumnSpan(_qianniuUrlBox, 3);
         layout.Controls.Add(_qianniuUrlBox, 1, 1);
 
-        layout.Controls.Add(new Label { Text = "商品页源码", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 2);
+        layout.Controls.Add(new Label { Text = "商品页源码", AutoSize = true, Anchor = AnchorStyles.Left }, 1, 2);
+        layout.Controls.Add(new Label { Text = "店铺页源码", AutoSize = true, Anchor = AnchorStyles.Left }, 3, 2);
+
         ConfigureSourceTextBox(_productSourceBox);
-        layout.SetColumnSpan(_productSourceBox, 4);
-        layout.Controls.Add(_productSourceBox, 1, 2);
-        _parseProductSourceButton.Text = "提取商品名";
-        _parseProductSourceButton.Width = 110;
-        _parseProductSourceButton.Anchor = AnchorStyles.Top;
-        _parseProductSourceButton.Click += (_, _) => ParseProductSource();
-        layout.Controls.Add(_parseProductSourceButton, 5, 2);
+        _productSourceBox.Margin = new Padding(6, 3, 8, 3);
+        layout.Controls.Add(_productSourceBox, 1, 3);
 
-        layout.Controls.Add(new Label { Text = "商品名称", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 3);
-        _manualProductNameBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-        layout.SetColumnSpan(_manualProductNameBox, 5);
-        layout.Controls.Add(_manualProductNameBox, 1, 3);
-
-        layout.Controls.Add(new Label { Text = "店铺页源码", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 4);
         ConfigureSourceTextBox(_shopSourceBox);
-        layout.SetColumnSpan(_shopSourceBox, 4);
-        layout.Controls.Add(_shopSourceBox, 1, 4);
-        _parseShopSourceButton.Text = "提取店铺ID";
-        _parseShopSourceButton.Width = 110;
-        _parseShopSourceButton.Anchor = AnchorStyles.Top;
-        _parseShopSourceButton.Click += (_, _) => ParseShopSource();
-        layout.Controls.Add(_parseShopSourceButton, 5, 4);
+        _shopSourceBox.Margin = new Padding(6, 3, 0, 3);
+        layout.Controls.Add(_shopSourceBox, 3, 3);
 
-        layout.Controls.Add(new Label { Text = "sellerId", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 5);
-        _manualSellerIdBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-        layout.Controls.Add(_manualSellerIdBox, 1, 5);
-        layout.Controls.Add(new Label { Text = "shopId", AutoSize = true, Anchor = AnchorStyles.Left }, 2, 5);
-        _manualShopIdBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-        layout.Controls.Add(_manualShopIdBox, 3, 5);
-        _manualStartButton.Text = "按源码信息获取长图";
+        layout.Controls.Add(new Label { Text = "商品名称", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 4);
+        ConfigureReadonlyResultBox(_manualProductNameBox);
+        layout.Controls.Add(_manualProductNameBox, 1, 4);
+
+        layout.Controls.Add(new Label { Text = "sellerId", AutoSize = true, Anchor = AnchorStyles.Left }, 2, 4);
+        ConfigureReadonlyResultBox(_manualSellerIdBox);
+        layout.Controls.Add(_manualSellerIdBox, 3, 4);
+
+        layout.Controls.Add(new Label { Text = "shopId", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 5);
+        ConfigureReadonlyResultBox(_manualShopIdBox);
+        layout.Controls.Add(_manualShopIdBox, 1, 5);
+
+        _manualStartButton.Text = "一键提取并获取长图";
         _manualStartButton.Width = 150;
+        _manualStartButton.Anchor = AnchorStyles.Right;
         _manualStartButton.Click += async (_, _) => await StartManualExtractAsync();
-        layout.Controls.Add(_manualStartButton, 4, 5);
+        layout.Controls.Add(_manualStartButton, 3, 6);
 
         return host;
     }
@@ -411,34 +404,6 @@ public sealed class MainForm : Form
         AppendLog($"已生成并复制千牛商品链接：{url}");
     }
 
-    private void ParseProductSource()
-    {
-        var productName = SourceParser.ExtractProductName(_productSourceBox.Text);
-        if (string.IsNullOrWhiteSpace(productName))
-        {
-            MessageBox.Show("未能从商品页源码中提取商品名称。", "提取失败", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-
-        _manualProductNameBox.Text = productName;
-        AppendLog($"已从商品页源码提取商品名称：{productName}");
-    }
-
-    private void ParseShopSource()
-    {
-        var (sellerId, shopId) = SourceParser.ExtractSellerAndShopIds(_shopSourceBox.Text);
-        _manualSellerIdBox.Text = sellerId;
-        _manualShopIdBox.Text = shopId;
-
-        if (string.IsNullOrWhiteSpace(sellerId) || string.IsNullOrWhiteSpace(shopId))
-        {
-            MessageBox.Show($"未能完整提取 sellerId/shopId。sellerId={sellerId} shopId={shopId}", "提取失败", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-
-        AppendLog($"已从店铺页源码提取 sellerId={sellerId} shopId={shopId}");
-    }
-
     private async Task InitializeChromeAsync()
     {
         try
@@ -460,9 +425,16 @@ public sealed class MainForm : Form
 
             if (!ChromeHelper.IsPortAvailable(port))
             {
-                port = ChromeHelper.FindAvailablePort(port + 1);
-                _portBox.Value = port;
-                AppendLog($"原端口不可用，已自动调整为：{port}");
+                if (port == ChromeHelper.DefaultPort && ChromeHelper.HasRunningChromeProcesses())
+                {
+                    AppendLog("检测到已有 Chrome 进程，保留默认端口 9222，不自动切换端口。");
+                }
+                else
+                {
+                    port = ChromeHelper.FindAvailablePort(port + 1);
+                    _portBox.Value = port;
+                    AppendLog($"原端口不可用，已自动调整为：{port}");
+                }
             }
 
             ChromeHelper.StartChrome(_chromePathBox.Text, port);
@@ -553,9 +525,12 @@ public sealed class MainForm : Form
     private async Task StartManualExtractAsync()
     {
         var productId = TaobaoExtractor.ExtractProductId(TaobaoExtractor.NormalizeInput(_manualInputBox.Text.Trim()));
-        var productName = _manualProductNameBox.Text.Trim();
-        var sellerId = _manualSellerIdBox.Text.Trim();
-        var shopId = _manualShopIdBox.Text.Trim();
+        var productName = SourceParser.ExtractProductName(_productSourceBox.Text);
+        var (sellerId, shopId) = SourceParser.ExtractSellerAndShopIds(_shopSourceBox.Text);
+
+        _manualProductNameBox.Text = productName;
+        _manualSellerIdBox.Text = sellerId;
+        _manualShopIdBox.Text = shopId;
 
         if (string.IsNullOrWhiteSpace(productId))
         {
@@ -563,17 +538,21 @@ public sealed class MainForm : Form
             return;
         }
 
+        _qianniuUrlBox.Text = SourceParser.BuildQianniuProductUrl(productId);
+
         if (string.IsNullOrWhiteSpace(productName))
         {
-            MessageBox.Show("请先从商品页源码提取或手动填写商品名称。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("未能从商品页源码中提取商品名称。", "提取失败", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(sellerId) || string.IsNullOrWhiteSpace(shopId))
         {
-            MessageBox.Show("请先从店铺页源码提取或手动填写 sellerId/shopId。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show($"未能完整提取 sellerId/shopId。sellerId={sellerId} shopId={shopId}", "提取失败", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
+
+        AppendLog($"源码解析完成：商品名称={productName} sellerId={sellerId} shopId={shopId}");
 
         var item = new TaskItem
         {
@@ -647,9 +626,14 @@ public sealed class MainForm : Form
         _autoChromeButton.Enabled = enabled;
         _browseSaveButton.Enabled = enabled;
         _convertQianniuUrlButton.Enabled = enabled;
-        _parseProductSourceButton.Enabled = enabled;
-        _parseShopSourceButton.Enabled = enabled;
         _manualStartButton.Enabled = enabled;
+    }
+
+    private void AdjustInputPanelHeight()
+    {
+        _inputPanel.Height = _modeTabs.SelectedIndex == 0
+            ? AutoInputPanelHeight
+            : ManualInputPanelHeight;
     }
 
     private void OpenSaveFolder()
@@ -765,12 +749,20 @@ public sealed class MainForm : Form
         return column;
     }
 
-    private static void ConfigureSourceTextBox(TextBox textBox)
+    private static void ConfigureSourceTextBox(RichTextBox textBox)
     {
         textBox.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top | AnchorStyles.Bottom;
-        textBox.Multiline = true;
-        textBox.ScrollBars = ScrollBars.Vertical;
+        textBox.DetectUrls = false;
+        textBox.HideSelection = false;
+        textBox.ScrollBars = RichTextBoxScrollBars.Vertical;
         textBox.WordWrap = false;
+    }
+
+    private static void ConfigureReadonlyResultBox(TextBox textBox)
+    {
+        textBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        textBox.Enabled = false;
+        textBox.Margin = new Padding(6, 3, 8, 3);
     }
 
     private static string BuildAuctionUrlForDisplay(string sellerId, string shopId, string productName)
