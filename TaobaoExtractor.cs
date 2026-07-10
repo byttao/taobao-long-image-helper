@@ -296,6 +296,13 @@ public sealed class TaobaoExtractor
                     .replace(/[-_]\s*(淘宝网|天猫|tmall\.com|Taobao).*$/i, '')
                     .replace(/\s+/g, ' ')
                     .trim();
+                const mainTitle = document.querySelector('span[class^=""mainTitle""]');
+                if (mainTitle) {
+                    const value = mainTitle.getAttribute('title')
+                        || mainTitle.getAttribute('value')
+                        || textOf(mainTitle);
+                    if (value) return clean(value);
+                }
                 const selectors = [
                     'meta[property=""og:title""]',
                     'meta[name=""title""]',
