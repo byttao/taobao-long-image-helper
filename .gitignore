@@ -1,0 +1,10 @@
+bin/
+obj/
+publish-win-x64/
+downloads/
+downloads-dotnet/
+*.zip
+*.user
+*.suo
+*.log
+.vs/
