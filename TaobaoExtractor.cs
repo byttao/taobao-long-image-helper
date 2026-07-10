@@ -88,48 +88,16 @@ public sealed class TaobaoExtractor
             progress?.Report($"sellerId：{sellerId}");
             progress?.Report($"shopId：{shopId}");
 
-            var auctionUrl = BuildAuctionUrl(sellerId, shopId, productName);
-            diagnosticAuctionUrl = auctionUrl;
-            progress?.Report($"正在打开店铺搜索页定位图片，搜索词：{productName}");
-            await RandomOperationDelayAsync(cancellationToken, progress, "准备打开店铺搜索页");
-            await NavigateAsync(page, auctionUrl);
-            await WaitForPageReadyAsync(page);
-            await RandomOperationDelayAsync(cancellationToken, progress, "店铺搜索页已加载，准备定位图片");
-
-            var rawImageUrl = "";
-            try
-            {
-                rawImageUrl = await FindAuctionImageUrlAsync(page, productId);
-            }
-            catch (Exception ex) when (ex is TimeoutException || ex.Message.Contains("Timeout", StringComparison.OrdinalIgnoreCase))
-            {
-                progress?.Report("店铺搜索页未返回目标商品。");
-            }
-
-            if (string.IsNullOrWhiteSpace(rawImageUrl))
-            {
-                throw new InvalidOperationException(
-                    $"店铺搜索页未定位到目标商品，未下载图片。商品名称={productName}；sellerId={sellerId}；shopId={shopId}");
-            }
-
-            var imageUrl = CleanImageUrl(rawImageUrl);
-            Directory.CreateDirectory(outputDir);
-            var outputFile = Path.Combine(outputDir, $"{productId}长图.jpg");
-            await RandomOperationDelayAsync(cancellationToken, progress, "准备下载图片", 1200, 3000);
-            await DownloadImageAsync(imageUrl, outputFile, cancellationToken);
-
-            progress?.Report($"图片链接：{imageUrl}");
-            progress?.Report($"已保存：{outputFile}");
-
-            return new ExtractResult
-            {
-                ProductId = productId,
-                ProductName = productName,
-                SellerId = sellerId,
-                ShopId = shopId,
-                ImageUrl = imageUrl,
-                OutputFile = outputFile
-            };
+            diagnosticAuctionUrl = BuildAuctionUrl(sellerId, shopId, productName);
+            return await ExtractFromKnownInfoAsync(
+                page,
+                productId,
+                productName,
+                sellerId,
+                shopId,
+                outputDir,
+                progress,
+                cancellationToken);
         }
         catch (Exception ex) when (
             ex is not ExtractDiagnosticException
@@ -137,6 +105,69 @@ public sealed class TaobaoExtractor
             && HasDiagnosticInfo(diagnosticAuctionUrl, productName, sellerId, shopId))
         {
             throw new ExtractDiagnosticException(ex.Message, diagnosticAuctionUrl, productName, sellerId, shopId, ex);
+        }
+        finally
+        {
+            await page.CloseAsync(new PageCloseOptions { RunBeforeUnload = false }).CatchAsync();
+        }
+    }
+
+    public async Task<ExtractResult> ExtractFromKnownInfoAsync(
+        string productId,
+        string productName,
+        string sellerId,
+        string shopId,
+        int port,
+        string outputDir,
+        IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateKnownInfo(productId, productName, sellerId, shopId);
+
+        progress?.Report($"商品ID：{productId}");
+        progress?.Report($"商品名称：{productName}");
+        progress?.Report($"sellerId：{sellerId}");
+        progress?.Report($"shopId：{shopId}");
+        progress?.Report($"正在连接 Chrome：http://127.0.0.1:{port}");
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.ConnectOverCDPAsync(
+            $"http://127.0.0.1:{port}",
+            new BrowserTypeConnectOverCDPOptions
+            {
+                IsLocal = true,
+                NoDefaults = true,
+                Timeout = 15000
+            });
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var context = browser.Contexts.FirstOrDefault() ?? await browser.NewContextAsync();
+        var page = await context.NewPageAsync();
+
+        try
+        {
+            return await ExtractFromKnownInfoAsync(
+                page,
+                productId,
+                productName,
+                sellerId,
+                shopId,
+                outputDir,
+                progress,
+                cancellationToken);
+        }
+        catch (Exception ex) when (
+            ex is not ExtractDiagnosticException
+            && ex is not OperationCanceledException
+            && HasDiagnosticInfo(BuildAuctionUrl(sellerId, shopId, productName), productName, sellerId, shopId))
+        {
+            throw new ExtractDiagnosticException(
+                ex.Message,
+                BuildAuctionUrl(sellerId, shopId, productName),
+                productName,
+                sellerId,
+                shopId,
+                ex);
         }
         finally
         {
@@ -182,6 +213,79 @@ public sealed class TaobaoExtractor
             || !string.IsNullOrWhiteSpace(productName)
             || !string.IsNullOrWhiteSpace(sellerId)
             || !string.IsNullOrWhiteSpace(shopId);
+    }
+
+    private static void ValidateKnownInfo(string productId, string productName, string sellerId, string shopId)
+    {
+        if (string.IsNullOrWhiteSpace(productId))
+        {
+            throw new ArgumentException("缺少商品ID。");
+        }
+
+        if (string.IsNullOrWhiteSpace(productName))
+        {
+            throw new ArgumentException("缺少商品名称。");
+        }
+
+        if (string.IsNullOrWhiteSpace(sellerId) || string.IsNullOrWhiteSpace(shopId))
+        {
+            throw new ArgumentException("缺少 sellerId 或 shopId。");
+        }
+    }
+
+    private static async Task<ExtractResult> ExtractFromKnownInfoAsync(
+        IPage page,
+        string productId,
+        string productName,
+        string sellerId,
+        string shopId,
+        string outputDir,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        ValidateKnownInfo(productId, productName, sellerId, shopId);
+
+        var auctionUrl = BuildAuctionUrl(sellerId, shopId, productName);
+        progress?.Report($"正在打开店铺搜索页定位图片，搜索词：{productName}");
+        await RandomOperationDelayAsync(cancellationToken, progress, "准备打开店铺搜索页");
+        await NavigateAsync(page, auctionUrl);
+        await WaitForPageReadyAsync(page);
+        await RandomOperationDelayAsync(cancellationToken, progress, "店铺搜索页已加载，准备定位图片");
+
+        var rawImageUrl = "";
+        try
+        {
+            rawImageUrl = await FindAuctionImageUrlAsync(page, productId);
+        }
+        catch (Exception ex) when (ex is TimeoutException || ex.Message.Contains("Timeout", StringComparison.OrdinalIgnoreCase))
+        {
+            progress?.Report("店铺搜索页未返回目标商品。");
+        }
+
+        if (string.IsNullOrWhiteSpace(rawImageUrl))
+        {
+            throw new InvalidOperationException(
+                $"店铺搜索页未定位到目标商品，未下载图片。商品名称={productName}；sellerId={sellerId}；shopId={shopId}");
+        }
+
+        var imageUrl = CleanImageUrl(rawImageUrl);
+        Directory.CreateDirectory(outputDir);
+        var outputFile = Path.Combine(outputDir, $"{productId}长图.jpg");
+        await RandomOperationDelayAsync(cancellationToken, progress, "准备下载图片", 1200, 3000);
+        await DownloadImageAsync(imageUrl, outputFile, cancellationToken);
+
+        progress?.Report($"图片链接：{imageUrl}");
+        progress?.Report($"已保存：{outputFile}");
+
+        return new ExtractResult
+        {
+            ProductId = productId,
+            ProductName = productName,
+            SellerId = sellerId,
+            ShopId = shopId,
+            ImageUrl = imageUrl,
+            OutputFile = outputFile
+        };
     }
 
     private static async Task NavigateAsync(IPage page, string url)
