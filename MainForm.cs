@@ -297,6 +297,7 @@ public sealed class MainForm : Form
             }
 
             ChromeHelper.StartChrome(_chromePathBox.Text, port);
+            await ChromeHelper.WaitForDebugPortAsync(port, TimeSpan.FromSeconds(10));
             AppendLog($"Chrome 已启动，端口：{port}");
             AppendLog($"已打开淘宝登录页：{ChromeHelper.LoginUrl}");
         }

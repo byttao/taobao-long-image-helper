@@ -89,6 +89,23 @@ public static class ChromeHelper
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CodexTaobaoPlaywrightChromeProfile");
     }
 
+    public static string GetProfileDirForPort(int port)
+    {
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), $"CodexTaobaoPlaywrightChromeProfile-{port}");
+    }
+
+    public static async Task WaitForDebugPortAsync(int port, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (await CanConnectToDebugPortAsync(port)) return;
+            await Task.Delay(500);
+        }
+
+        throw new TimeoutException($"Chrome 已启动，但端口 {port} 未开放调试连接。请关闭旧 Chrome 后重试，或换一个端口。");
+    }
+
     public static Process? StartChrome(string chromePath, int port, string? profileDir = null)
     {
         if (!File.Exists(chromePath))
@@ -96,7 +113,7 @@ public static class ChromeHelper
             throw new FileNotFoundException("Chrome 路径不存在。", chromePath);
         }
 
-        profileDir ??= GetDefaultProfileDir();
+        profileDir ??= GetProfileDirForPort(port);
         Directory.CreateDirectory(profileDir);
 
         var psi = new ProcessStartInfo

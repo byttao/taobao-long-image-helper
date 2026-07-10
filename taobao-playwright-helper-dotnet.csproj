@@ -6,9 +6,9 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>TaobaoLongImageHelper</AssemblyName>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <Version>1.6.0</Version>
-    <FileVersion>1.6.0.0</FileVersion>
-    <InformationalVersion>1.6.0</InformationalVersion>
+    <Version>1.7.0</Version>
+    <FileVersion>1.7.0.0</FileVersion>
+    <InformationalVersion>1.7.0</InformationalVersion>
     <RootNamespace>taobao_playwright_helper_dotnet</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
