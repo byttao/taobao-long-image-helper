@@ -185,11 +185,13 @@ public sealed class MainForm : Form
         _grid.ShowCellToolTips = true;
         _grid.DataSource = _tasks;
         _grid.Columns.Add(CreateGridColumn("状态", nameof(TaskItem.Status), 8, 60));
-        _grid.Columns.Add(CreateGridColumn("商品ID", nameof(TaskItem.ProductId), 14, 105));
-        _grid.Columns.Add(CreateGridColumn("商品名称", nameof(TaskItem.ProductName), 20, 120));
-        _grid.Columns.Add(CreateGridColumn("图片链接", nameof(TaskItem.ImageUrl), 28, 150));
-        _grid.Columns.Add(CreateGridColumn("图片文件", nameof(TaskItem.ImageFile), 22, 135));
-        _grid.Columns.Add(CreateGridColumn("说明", nameof(TaskItem.Message), 20, 130));
+        _grid.Columns.Add(CreateGridColumn("商品ID", nameof(TaskItem.ProductId), 13, 100));
+        _grid.Columns.Add(CreateGridColumn("商品名称", nameof(TaskItem.ProductName), 18, 110));
+        _grid.Columns.Add(CreateGridColumn("sellerId", nameof(TaskItem.SellerId), 10, 80));
+        _grid.Columns.Add(CreateGridColumn("shopId", nameof(TaskItem.ShopId), 10, 80));
+        _grid.Columns.Add(CreateGridColumn("图片链接", nameof(TaskItem.ImageUrl), 24, 140));
+        _grid.Columns.Add(CreateGridColumn("图片文件", nameof(TaskItem.ImageFile), 20, 120));
+        _grid.Columns.Add(CreateGridColumn("说明", nameof(TaskItem.Message), 18, 120));
         _grid.Columns.Add(CreateGridColumn("创建时间", nameof(TaskItem.CreatedAt), 10, 85, "MM-dd HH:mm"));
         _grid.MouseDown += GridMouseDown;
         _grid.MouseMove += GridMouseMove;
@@ -221,7 +223,7 @@ public sealed class MainForm : Form
         {
             AutoSize = true,
             ForeColor = Color.DimGray,
-            Text = "双击“图片链接”列复制网址；双击其他列复制图片文件，可到文件夹中粘贴。失败行若生成排查链接，也可双击复制。"
+            Text = "双击“图片链接”列复制网址；双击其他列复制图片文件。失败时列表会保留已获取的商品名、sellerId、shopId 和排查链接。"
         }, 0, 0);
 
         panel.Controls.Add(new Label
@@ -355,9 +357,11 @@ public sealed class MainForm : Form
             item.Status = "完成";
             item.ProductId = result.ProductId;
             item.ProductName = result.ProductName;
+            item.SellerId = result.SellerId;
+            item.ShopId = result.ShopId;
             item.ImageUrl = result.ImageUrl;
             item.ImageFile = result.OutputFile;
-            item.Message = result.UsedFallback ? "完成：使用详情页主图兜底" : "完成：店铺搜索页命中";
+            item.Message = "完成：店铺搜索页命中";
             AppendLog(item.Message);
         }
         catch (Exception ex)
@@ -370,6 +374,8 @@ public sealed class MainForm : Form
                 {
                     item.ProductName = diagnosticException.ProductName;
                 }
+                item.SellerId = diagnosticException.SellerId;
+                item.ShopId = diagnosticException.ShopId;
             }
 
             item.Message = ex.Message;

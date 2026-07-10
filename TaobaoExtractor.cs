@@ -36,6 +36,8 @@ public sealed class TaobaoExtractor
         var context = browser.Contexts.FirstOrDefault() ?? await browser.NewContextAsync();
         var page = await context.NewPageAsync();
         var productName = "";
+        var sellerId = "";
+        var shopId = "";
         var diagnosticAuctionUrl = "";
 
         try
@@ -60,8 +62,7 @@ public sealed class TaobaoExtractor
             }
             progress?.Report($"商品名称：{productName}");
 
-            var productMainImageUrl = CleanImageUrl(await ExtractProductMainImageAsync(page));
-            var (sellerId, shopId) = await ExtractSellerAndShopIdsAsync(page);
+            (sellerId, shopId) = await ExtractSellerAndShopIdsAsync(page);
 
             if (string.IsNullOrWhiteSpace(sellerId) || string.IsNullOrWhiteSpace(shopId))
             {
@@ -105,19 +106,13 @@ public sealed class TaobaoExtractor
                 progress?.Report("店铺搜索页未返回目标商品。");
             }
 
-            var usedFallback = false;
-            if (string.IsNullOrWhiteSpace(rawImageUrl) && string.IsNullOrWhiteSpace(productMainImageUrl))
-            {
-                throw new InvalidOperationException("未能从店铺搜索页或商品详情页找到可下载图片。");
-            }
-
             if (string.IsNullOrWhiteSpace(rawImageUrl))
             {
-                usedFallback = true;
-                progress?.Report("店铺搜索页未定位到目标商品，使用商品详情页主图兜底。");
+                throw new InvalidOperationException(
+                    $"店铺搜索页未定位到目标商品，未下载图片。商品名称={productName}；sellerId={sellerId}；shopId={shopId}");
             }
 
-            var imageUrl = CleanImageUrl(string.IsNullOrWhiteSpace(rawImageUrl) ? productMainImageUrl : rawImageUrl);
+            var imageUrl = CleanImageUrl(rawImageUrl);
             Directory.CreateDirectory(outputDir);
             var outputFile = Path.Combine(outputDir, $"{productId}长图.jpg");
             await RandomOperationDelayAsync(cancellationToken, progress, "准备下载图片", 1200, 3000);
@@ -133,13 +128,15 @@ public sealed class TaobaoExtractor
                 SellerId = sellerId,
                 ShopId = shopId,
                 ImageUrl = imageUrl,
-                OutputFile = outputFile,
-                UsedFallback = usedFallback
+                OutputFile = outputFile
             };
         }
-        catch (Exception ex) when (!string.IsNullOrWhiteSpace(diagnosticAuctionUrl) && ex is not ExtractDiagnosticException)
+        catch (Exception ex) when (
+            ex is not ExtractDiagnosticException
+            && ex is not OperationCanceledException
+            && HasDiagnosticInfo(diagnosticAuctionUrl, productName, sellerId, shopId))
         {
-            throw new ExtractDiagnosticException(ex.Message, diagnosticAuctionUrl, productName, ex);
+            throw new ExtractDiagnosticException(ex.Message, diagnosticAuctionUrl, productName, sellerId, shopId, ex);
         }
         finally
         {
@@ -177,6 +174,14 @@ public sealed class TaobaoExtractor
 
         var match = Regex.Match(url, @"[?&](?:id|itemId|item_id|auctionId)=(\d+)", RegexOptions.IgnoreCase);
         return match.Success ? match.Groups[1].Value : "";
+    }
+
+    private static bool HasDiagnosticInfo(string diagnosticUrl, string productName, string sellerId, string shopId)
+    {
+        return !string.IsNullOrWhiteSpace(diagnosticUrl)
+            || !string.IsNullOrWhiteSpace(productName)
+            || !string.IsNullOrWhiteSpace(sellerId)
+            || !string.IsNullOrWhiteSpace(shopId);
     }
 
     private static async Task NavigateAsync(IPage page, string url)
@@ -327,29 +332,6 @@ public sealed class TaobaoExtractor
                 }
 
                 return clean(document.title);
-            }");
-    }
-
-    private static async Task<string> ExtractProductMainImageAsync(IPage page)
-    {
-        return await page.EvaluateAsync<string>(
-            @"() => {
-                const absolutize = url => {
-                    if (!url) return '';
-                    if (url.startsWith('//')) return `${location.protocol}${url}`;
-                    try { return new URL(url, location.href).href; } catch { return url; }
-                };
-                const selectors = ['#mainPicImageEl', 'img[class*=""mainPic""]', 'img[class*=""thumbnailPic""]'];
-                for (const selector of selectors) {
-                    const image = document.querySelector(selector);
-                    const src = image?.currentSrc
-                        || image?.getAttribute('src')
-                        || image?.getAttribute('data-src')
-                        || image?.getAttribute('data-ks-lazyload')
-                        || '';
-                    if (src) return absolutize(src);
-                }
-                return '';
             }");
     }
 
